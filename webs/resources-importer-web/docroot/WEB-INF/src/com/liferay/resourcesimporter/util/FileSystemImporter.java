@@ -14,6 +14,8 @@
 
 package com.liferay.resourcesimporter.util;
 
+import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.exception.SystemException;
 import com.liferay.portal.kernel.json.JSONArray;
 import com.liferay.portal.kernel.json.JSONFactoryUtil;
 import com.liferay.portal.kernel.json.JSONObject;
@@ -54,7 +56,10 @@ import com.liferay.portal.util.PortletKeys;
 import com.liferay.portlet.PortletPreferencesFactoryUtil;
 import com.liferay.portlet.asset.model.AssetTag;
 import com.liferay.portlet.asset.service.AssetTagLocalServiceUtil;
+import com.liferay.portlet.documentlibrary.model.DLFolder;
+import com.liferay.portlet.documentlibrary.model.DLFolderConstants;
 import com.liferay.portlet.documentlibrary.service.DLAppLocalServiceUtil;
+import com.liferay.portlet.documentlibrary.service.DLFolderLocalServiceUtil;
 import com.liferay.portlet.documentlibrary.util.DLUtil;
 import com.liferay.portlet.dynamicdatamapping.model.DDMStructure;
 import com.liferay.portlet.dynamicdatamapping.model.DDMStructureConstants;
@@ -174,23 +179,39 @@ public class FileSystemImporter extends BaseImporter {
 			return;
 		}
 
-		File[] files = listFiles(dlDocumentsDir);
+		File[] files = dlDocumentsDir.listFiles();
+
+		if (Validator.isNull(files)) {
+			return;
+		}
 
 		for (File file : files) {
-			InputStream inputStream = null;
+			if (file.isDirectory()) {
+				long folderId = addDLFolder(
+					DLFolderConstants.DEFAULT_PARENT_FOLDER_ID, file.getName());
 
-			try {
-				inputStream = new BufferedInputStream(
-					new FileInputStream(file));
-
-				doAddDLFileEntries(file.getName(), inputStream, file.length());
+				recurseDLDirectory(folderId, file);
 			}
-			finally {
-				if (inputStream != null) {
-					inputStream.close();
-				}
+			else {
+				doAddDLFileEntry(
+					DLFolderConstants.DEFAULT_PARENT_FOLDER_ID, file);
 			}
 		}
+	}
+
+	protected long addDLFolder(long parentFolderId, String folderName)
+		throws PortalException, SystemException {
+
+		DLFolder dlFolder = DLFolderLocalServiceUtil.fetchFolder(
+			groupId, parentFolderId, folderName);
+
+		if (dlFolder == null) {
+			dlFolder = DLFolderLocalServiceUtil.addFolder(
+				userId, groupId, groupId, false, parentFolderId, folderName,
+				null, false, serviceContext);
+		}
+
+		return dlFolder.getFolderId();
 	}
 
 	protected void addJournalArticles(
@@ -231,10 +252,6 @@ public class FileSystemImporter extends BaseImporter {
 			boolean privateLayout, long parentLayoutId,
 			JSONObject layoutJSONObject)
 		throws Exception {
-
-		if (targetClassName.equals(LayoutSetPrototype.class.getName())) {
-			privateLayout = true;
-		}
 
 		Map<Locale, String> nameMap = new HashMap<Locale, String>();
 
@@ -498,8 +515,27 @@ public class FileSystemImporter extends BaseImporter {
 			_JOURNAL_ARTICLES_DIR_NAME + name);
 	}
 
-	protected void doAddDLFileEntries(
-			String fileName, InputStream inputStream, long length)
+	protected void doAddDLFileEntry(long parentFolderId, File file)
+		throws Exception {
+
+		InputStream inputStream = null;
+
+		try {
+			inputStream = new BufferedInputStream(new FileInputStream(file));
+
+			doAddDLFileEntry(
+				parentFolderId, file.getName(), inputStream, file.length());
+		}
+		finally {
+			if (inputStream != null) {
+				inputStream.close();
+			}
+		}
+	}
+
+	protected void doAddDLFileEntry(
+			long parentFolderId, String fileName, InputStream inputStream,
+			long length)
 		throws Exception {
 
 		String mimeType = MimeTypesUtil.getContentType(fileName);
@@ -509,8 +545,9 @@ public class FileSystemImporter extends BaseImporter {
 		setServiceContext(fileName);
 
 		FileEntry fileEntry = DLAppLocalServiceUtil.addFileEntry(
-			userId, groupId, 0, fileName, mimeType, title, StringPool.BLANK,
-			StringPool.BLANK, inputStream, length, serviceContext);
+			userId, groupId, parentFolderId, fileName, mimeType, title,
+			StringPool.BLANK, StringPool.BLANK, inputStream, length,
+			serviceContext);
 
 		_fileEntries.put(fileName, fileEntry);
 	}
@@ -746,6 +783,27 @@ public class FileSystemImporter extends BaseImporter {
 		sb.append("</static-content></root>");
 
 		return sb.toString();
+	}
+
+	protected void recurseDLDirectory(long parentFolderId, File directory)
+		throws Exception {
+
+		File[] files = directory.listFiles();
+
+		if (Validator.isNull(files)) {
+			return;
+		}
+
+		for (File file : files) {
+			if (file.isDirectory()) {
+				long folderId = addDLFolder(parentFolderId, file.getName());
+
+				recurseDLDirectory(folderId, file);
+			}
+			else {
+				doAddDLFileEntry(parentFolderId, file);
+			}
+		}
 	}
 
 	protected String replaceFileEntryURL(String content) throws Exception {
