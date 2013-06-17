@@ -16,17 +16,21 @@ package com.liferay.resourcesimporter.util;
 
 import com.liferay.portal.kernel.util.FileUtil;
 import com.liferay.portal.kernel.util.StringPool;
+import com.liferay.portlet.documentlibrary.model.DLFolderConstants;
 
 import java.io.InputStream;
 
 import java.net.URL;
 import java.net.URLConnection;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 /**
  * @author Raymond Augé
  * @author Ryan Park
+ * @author Paul Shemansky
  */
 public class ResourceImporter extends FileSystemImporter {
 
@@ -95,28 +99,12 @@ public class ResourceImporter extends FileSystemImporter {
 	protected void addDLFileEntries(String fileEntriesDirName)
 		throws Exception {
 
-		Set<String> resourcePaths = servletContext.getResourcePaths(
-			resourcesDir.concat(fileEntriesDirName));
+		String resourcePathRoot = resourcesDir.concat(
+			fileEntriesDirName.substring(1));
 
-		if (resourcePaths == null) {
-			return;
-		}
-
-		for (String resourcePath : resourcePaths) {
-			if (resourcePath.endsWith(StringPool.SLASH)) {
-				continue;
-			}
-
-			String name = FileUtil.getShortFileName(resourcePath);
-
-			URL url = servletContext.getResource(resourcePath);
-
-			URLConnection urlConnection = url.openConnection();
-
-			doAddDLFileEntries(
-				name, urlConnection.getInputStream(),
-				urlConnection.getContentLength());
-		}
+		recurseDLDirectory(
+			DLFolderConstants.DEFAULT_PARENT_FOLDER_ID, resourcePathRoot,
+			resourcePathRoot);
 	}
 
 	@Override
@@ -149,6 +137,29 @@ public class ResourceImporter extends FileSystemImporter {
 		}
 	}
 
+	protected void doAddDLFileEntry(String resourcePathRoot, String resourcePath)
+		throws Exception {
+
+		String folderPath = FileUtil.getPath(resourcePath) + StringPool.SLASH;
+
+		Long parentFolderId = _folderIds.get(folderPath);
+
+		if (parentFolderId == null) {
+			throw new Exception("No Folder Created for File Path :" +
+				folderPath);
+		}
+
+		String name = FileUtil.getShortFileName(resourcePath);
+
+		URL url = servletContext.getResource(resourcePath);
+
+		URLConnection urlConnection = url.openConnection();
+
+		doAddDLFileEntry(
+			parentFolderId, name, urlConnection.getInputStream(),
+			urlConnection.getContentLength());
+	}
+
 	@Override
 	protected InputStream getInputStream(String fileName) throws Exception {
 		URL url = servletContext.getResource(resourcesDir.concat(fileName));
@@ -161,5 +172,38 @@ public class ResourceImporter extends FileSystemImporter {
 
 		return urlConnection.getInputStream();
 	}
+
+	private String getFolderName(String resourcePath) {
+		String path = FileUtil.getPath(resourcePath);
+		String folderName = path.substring(
+			path.lastIndexOf(StringPool.SLASH) + 1);
+		return folderName;
+	}
+
+	private void recurseDLDirectory(
+		long parentFolderId, String currentPath, String resourcePathRoot)
+		throws Exception {
+
+		Set<String> resourcePaths = servletContext.getResourcePaths(
+			currentPath);
+
+		if (resourcePaths == null || resourcePaths.isEmpty()) {
+			return;
+		}
+
+		for (String resourcePath : resourcePaths) {
+			if (resourcePath.endsWith(StringPool.SLASH)) {
+				String folderName = getFolderName(resourcePath);
+				long dlFolderId = addDLFolder(parentFolderId, folderName);
+				_folderIds.put(resourcePath, dlFolderId);
+				recurseDLDirectory(dlFolderId, resourcePath, resourcePathRoot);
+			}
+			else {
+				doAddDLFileEntry(resourcePathRoot, resourcePath);
+			}
+		}
+	}
+
+	private Map<String, Long> _folderIds = new HashMap<String, Long>();
 
 }
