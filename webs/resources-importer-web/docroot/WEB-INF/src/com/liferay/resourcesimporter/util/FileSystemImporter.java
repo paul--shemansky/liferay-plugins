@@ -20,6 +20,7 @@ import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.repository.model.FileEntry;
 import com.liferay.portal.kernel.template.TemplateConstants;
 import com.liferay.portal.kernel.util.ArrayUtil;
+import com.liferay.portal.kernel.util.DateUtil;
 import com.liferay.portal.kernel.util.FileUtil;
 import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.LocalizationUtil;
@@ -44,17 +45,20 @@ import com.liferay.portal.model.LayoutTypePortlet;
 import com.liferay.portal.model.LayoutTypePortletConstants;
 import com.liferay.portal.model.PortletConstants;
 import com.liferay.portal.model.Theme;
+import com.liferay.portal.model.User;
 import com.liferay.portal.service.LayoutLocalServiceUtil;
 import com.liferay.portal.service.LayoutSetLocalServiceUtil;
 import com.liferay.portal.service.LayoutSetPrototypeLocalServiceUtil;
 import com.liferay.portal.service.RepositoryLocalServiceUtil;
 import com.liferay.portal.service.ServiceContext;
 import com.liferay.portal.service.ThemeLocalServiceUtil;
+import com.liferay.portal.service.UserLocalServiceUtil;
 import com.liferay.portal.util.PortalUtil;
 import com.liferay.portal.util.PortletKeys;
 import com.liferay.portlet.PortletPreferencesFactoryUtil;
 import com.liferay.portlet.asset.model.AssetTag;
 import com.liferay.portlet.asset.service.AssetTagLocalServiceUtil;
+import com.liferay.portlet.blogs.service.BlogsEntryLocalServiceUtil;
 import com.liferay.portlet.documentlibrary.model.DLFolder;
 import com.liferay.portlet.documentlibrary.model.DLFolderConstants;
 import com.liferay.portlet.documentlibrary.service.DLAppLocalServiceUtil;
@@ -77,7 +81,12 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.Serializable;
 
+import java.text.DateFormat;
+
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -104,6 +113,144 @@ public class FileSystemImporter extends BaseImporter {
 		}
 
 		doImportResources();
+	}
+
+	protected void addBlogEntry(
+		String blogsRelativeFileName, InputStream contentInputStream,
+		InputStream blogMetaDataInputStream, String smallImageFileName,
+		InputStream smallImageInputStream)
+		throws Exception {
+
+		String decodedFileName = FileUtil.decodeSafeFileName(
+			blogsRelativeFileName);
+		String blogsEntryShortFileName = FileUtil.getShortFileName(
+			decodedFileName);
+		String[] pathSegments = decodedFileName.split(StringPool.SLASH);
+
+		String title =
+			blogsEntryShortFileName.substring(
+				0, blogsEntryShortFileName.lastIndexOf("."));
+
+		long userId = super.userId;
+		Calendar calendar = GregorianCalendar.getInstance();
+
+		String description = "";
+		boolean allowPingbacks = false;
+		String smallImageURL = "";
+		boolean smallImage = false;
+		boolean allowTrackbacks = false;
+		String[] trackbacks = null;
+
+		User user = null;
+		String userName = null;
+
+		if (blogMetaDataInputStream != null) {
+			String blogMetaDataJSON = StringUtil.read(blogMetaDataInputStream);
+			JSONObject blogMetaData = JSONFactoryUtil.createJSONObject(
+				blogMetaDataJSON);
+
+			if (blogMetaData != null) {
+				userName = blogMetaData.getString("userScreenName");
+				description = blogMetaData.getString("description");
+				String displayDate = blogMetaData.getString("displayDate");
+				DateFormat format = DateUtil.getISOFormat(displayDate);
+				Date date = format.parse(displayDate);
+				calendar.setTime(date);
+
+				allowPingbacks = blogMetaData.getBoolean("allowPingBacks");
+				trackbacks = new String[] {
+					blogMetaData.getString("trackbacks")
+				};
+				smallImageURL = blogMetaData.getString("smallImageURL");
+				smallImageFileName = blogMetaData.getString(
+					"smallImageFileName");
+				smallImage = blogMetaData.getBoolean("smallImage");
+				smallImageInputStream = null;
+				allowTrackbacks = blogMetaData.getBoolean("allowTrackbacks");
+
+				if (Validator.isNotNull(userName)) {
+					user =
+						UserLocalServiceUtil.fetchUserByScreenName(
+							companyId, userName);
+				}
+			}
+		}
+
+		if (Validator.isNull(userName) || user == null) {
+			userName = pathSegments[0];
+			user = UserLocalServiceUtil.fetchUserByScreenName(
+				companyId, userName);
+		}
+
+		if (user != null) {
+			userId = user.getUserId();
+		}
+
+		int displayDateMonth = calendar.get(GregorianCalendar.MONTH);
+		int displayDateDay = calendar.get(GregorianCalendar.DAY_OF_MONTH);
+		int displayDateYear = calendar.get(GregorianCalendar.YEAR);
+		int displayDateHour = calendar.get(GregorianCalendar.HOUR);
+		int displayDateMinute = calendar.get(GregorianCalendar.MINUTE);
+
+		String content = StringUtil.read(contentInputStream);
+		content = replaceFileEntryURL(content);
+
+		BlogsEntryLocalServiceUtil.addEntry(
+			userId, title, description, content, displayDateMonth, displayDateDay,
+			displayDateYear, displayDateHour, displayDateMinute, allowPingbacks,
+			allowTrackbacks, trackbacks, smallImage, smallImageURL,
+			smallImageFileName, smallImageInputStream, serviceContext);
+	}
+
+	protected void addBlogs(String blogsDirectoryPath) throws Exception {
+		File blogsBaseDirectory = getFile(blogsDirectoryPath);
+		File[] blogDirectories = blogsBaseDirectory.listFiles();
+
+		if (blogDirectories != null) {
+			for (File userBlogDirectory : blogDirectories) {
+				File[] userBlogEntries = userBlogDirectory.listFiles();
+
+				if (userBlogEntries != null) {
+					for (File userBlogEntryFile : userBlogEntries) {
+						String blogEntryFileName =
+							userBlogEntryFile.getAbsolutePath();
+
+						if (blogEntryFileName.endsWith(".html")) {
+							InputStream contentInputStream = getInputStream(
+								userBlogEntryFile);
+
+							if (contentInputStream != null) {
+								String userBlogBaseFileName =
+									blogEntryFileName.substring(
+										resourcesDir.length(),
+										blogEntryFileName.length() - 5);
+
+								int blogPathLength =
+									blogsBaseDirectory.getPath().length() + 1;
+								String relativeBlogEntryFileName =
+									blogEntryFileName.substring(blogPathLength);
+
+								String blogMetaDataFileName =
+									userBlogBaseFileName + ".json";
+								File blogMetaDataFile = getFile(
+									blogMetaDataFileName);
+								InputStream blogMetaDataInputStream = null;
+
+								if (blogMetaDataFile != null) {
+									blogMetaDataInputStream = getInputStream(
+										blogMetaDataFile);
+								}
+
+								addBlogEntry(
+									relativeBlogEntryFileName,
+									contentInputStream, blogMetaDataInputStream,
+									StringPool.BLANK, null);
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	protected void addDDMStructures(
@@ -882,6 +1029,8 @@ public class FileSystemImporter extends BaseImporter {
 
 		DDMStructureLocalServiceUtil.deleteStructures(groupId);
 
+		BlogsEntryLocalServiceUtil.deleteEntries(groupId);
+
 		JSONObject jsonObject = getJSONObject(fileName);
 
 		if (jsonObject != null) {
@@ -898,6 +1047,8 @@ public class FileSystemImporter extends BaseImporter {
 		addDDMStructures(StringPool.BLANK, _JOURNAL_DDM_STRUCTURES_DIR_NAME);
 
 		addDDMTemplates(StringPool.BLANK, _JOURNAL_DDM_TEMPLATES_DIR_NAME);
+
+		addBlogs(_BLOGS_DIR_NAME);
 	}
 
 	protected void setupSettings(String fileName) throws Exception {
@@ -1009,6 +1160,8 @@ public class FileSystemImporter extends BaseImporter {
 	}
 
 	protected ServiceContext serviceContext;
+
+	private static final String _BLOGS_DIR_NAME = "/blogs/";
 
 	private static final String _DL_DOCUMENTS_DIR_NAME =
 		"/document_library/documents/";
