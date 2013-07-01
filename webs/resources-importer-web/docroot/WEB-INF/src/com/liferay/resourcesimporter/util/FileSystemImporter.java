@@ -73,9 +73,12 @@ import com.liferay.portlet.journal.model.JournalArticle;
 import com.liferay.portlet.journal.model.JournalArticleConstants;
 import com.liferay.portlet.journal.service.JournalArticleLocalServiceUtil;
 import com.liferay.portlet.journal.util.JournalConverterUtil;
+import com.liferay.portlet.messageboards.service.MBCategoryLocalServiceUtil;
 import com.liferay.portlet.wiki.model.WikiNode;
 import com.liferay.portlet.wiki.service.WikiNodeLocalServiceUtil;
 import com.liferay.portlet.wiki.service.WikiPageLocalServiceUtil;
+import com.liferay.resourcesimporter.util.messageboard.MessageBoardImporterHandler;
+import com.liferay.resourcesimporter.util.messageboard.MessageBoardXMLStreamReader;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -782,6 +785,31 @@ public class FileSystemImporter extends BaseImporter {
 		}
 	}
 
+	protected void addMessageBoards(String messageBoardsDirName)
+		throws Exception {
+
+		InputStream messageBoardFileIS = null;
+		MessageBoardXMLStreamReader reader = null;
+		try {
+			File messageBoardDirectory = getFile(messageBoardsDirName);
+			File[] messageBoardFiles = messageBoardDirectory.listFiles();
+
+			for (File messageBoardFile : messageBoardFiles) {
+				messageBoardFileIS = getInputStream(messageBoardFile);
+				reader = new MessageBoardXMLStreamReader(messageBoardFileIS);
+				MessageBoardImporterHandler xmlHandler =
+					new MessageBoardImporterHandler(serviceContext);
+				reader.setMessageBoardHandler(xmlHandler);
+				reader.read();
+			}
+		}
+		finally {
+			if (reader != null) {
+				reader.close();
+			}
+		}
+	}
+
 	protected void addWiki(String wikiDirectoryName) throws Exception {
 		File wikiDirectory = getFile(_WIKI_DIR_NAME);
 
@@ -797,9 +825,8 @@ public class FileSystemImporter extends BaseImporter {
 
 			for (File file : wikiContentFiles) {
 				String fileName = file.getName();
-				WikiNode wikiNode =
-					WikiNodeLocalServiceUtil.fetchNode(
-						groupId, wikiNodeName);
+				WikiNode wikiNode = WikiNodeLocalServiceUtil.fetchNode(
+					groupId, wikiNodeName);
 
 				if (wikiNode == null) {
 					wikiNode =
@@ -829,6 +856,8 @@ public class FileSystemImporter extends BaseImporter {
 
 		serviceContext.setAddGroupPermissions(true);
 		serviceContext.setAddGuestPermissions(true);
+		serviceContext.setUserId(userId);
+		serviceContext.setCompanyId(companyId);
 		serviceContext.setScopeGroupId(groupId);
 
 		setupAssets("assets.json");
@@ -1066,6 +1095,8 @@ public class FileSystemImporter extends BaseImporter {
 
 		BlogsEntryLocalServiceUtil.deleteEntries(groupId);
 
+		MBCategoryLocalServiceUtil.deleteCategories(groupId);
+
 		WikiNodeLocalServiceUtil.deleteNodes(groupId);
 
 		JSONObject jsonObject = getJSONObject(fileName);
@@ -1086,6 +1117,8 @@ public class FileSystemImporter extends BaseImporter {
 		addDDMTemplates(StringPool.BLANK, _JOURNAL_DDM_TEMPLATES_DIR_NAME);
 
 		addBlogs(_BLOGS_DIR_NAME);
+
+		addMessageBoards(_MESSAGE_BOARDS_DIR_NAME);
 
 		addWiki(_WIKI_DIR_NAME);
 	}
@@ -1213,6 +1246,8 @@ public class FileSystemImporter extends BaseImporter {
 
 	private static final String _JOURNAL_DDM_TEMPLATES_DIR_NAME =
 		"/journal/templates/";
+
+	private static final String _MESSAGE_BOARDS_DIR_NAME = "/message_boards/";
 
 	private static final String _WIKI_DIR_NAME = "/wiki/";
 
