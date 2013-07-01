@@ -96,7 +96,7 @@ public class FileSystemImporter extends BaseImporter {
 
 	@Override
 	public void importResources() throws Exception {
-		_resourcesDir = new File(resourcesDir);
+		_resourcesDir = getFile(resourcesDir);
 
 		if (!_resourcesDir.isDirectory() || !_resourcesDir.canRead()) {
 			throw new IllegalArgumentException(
@@ -110,7 +110,7 @@ public class FileSystemImporter extends BaseImporter {
 			String parentDDMStructureKey, String structuresDirName)
 		throws Exception {
 
-		File journalStructuresDir = new File(_resourcesDir, structuresDirName);
+		File journalStructuresDir = getFile(structuresDirName);
 
 		if (!journalStructuresDir.isDirectory() ||
 			!journalStructuresDir.canRead()) {
@@ -124,8 +124,7 @@ public class FileSystemImporter extends BaseImporter {
 			InputStream inputStream = null;
 
 			try {
-				inputStream = new BufferedInputStream(
-					new FileInputStream(file));
+				inputStream = getInputStream(file);
 
 				addDDMStructures(
 					parentDDMStructureKey, file.getName(), inputStream);
@@ -165,13 +164,13 @@ public class FileSystemImporter extends BaseImporter {
 			DDMStructureConstants.TYPE_DEFAULT, serviceContext);
 
 		addDDMTemplates(
-			ddmStructure.getStructureKey(),
-			_JOURNAL_DDM_TEMPLATES_DIR_NAME + name);
+			ddmStructure.getStructureKey(), _JOURNAL_DDM_TEMPLATES_DIR_NAME +
+				name + "/");
 
 		if (Validator.isNull(parentDDMStructureKey)) {
 			addDDMStructures(
 				ddmStructure.getStructureKey(),
-				_JOURNAL_DDM_STRUCTURES_DIR_NAME + name);
+				_JOURNAL_DDM_STRUCTURES_DIR_NAME + name + "/");
 		}
 	}
 
@@ -179,7 +178,7 @@ public class FileSystemImporter extends BaseImporter {
 			String ddmStructureKey, String templatesDirName)
 		throws Exception {
 
-		File journalTemplatesDir = new File(_resourcesDir, templatesDirName);
+		File journalTemplatesDir = getFile(templatesDirName);
 
 		if (!journalTemplatesDir.isDirectory() ||
 			!journalTemplatesDir.canRead()) {
@@ -193,8 +192,7 @@ public class FileSystemImporter extends BaseImporter {
 			InputStream inputStream = null;
 
 			try {
-				inputStream = new BufferedInputStream(
-					new FileInputStream(file));
+				inputStream = getInputStream(file);
 
 				addDDMTemplates(ddmStructureKey, file.getName(), inputStream);
 			}
@@ -236,13 +234,13 @@ public class FileSystemImporter extends BaseImporter {
 
 		addJournalArticles(
 			ddmStructureKey, ddmTemplate.getTemplateKey(),
-			_JOURNAL_ARTICLES_DIR_NAME + name);
+			_JOURNAL_ARTICLES_DIR_NAME + name + "/");
 	}
 
 	protected void addDLFileEntries(String fileEntriesDirName)
 		throws Exception {
 
-		File dlDocumentsDir = new File(_resourcesDir, fileEntriesDirName);
+		File dlDocumentsDir = getFile(fileEntriesDirName);
 
 		if (!dlDocumentsDir.isDirectory()|| !dlDocumentsDir.canRead()) {
 			return;
@@ -271,7 +269,7 @@ public class FileSystemImporter extends BaseImporter {
 		InputStream inputStream = null;
 
 		try {
-			inputStream = new BufferedInputStream(new FileInputStream(file));
+			inputStream = getInputStream(file);
 
 			addDLFileEntry(
 				parentFolderId, file.getName(), inputStream, file.length());
@@ -342,7 +340,7 @@ public class FileSystemImporter extends BaseImporter {
 			String articlesDirName)
 		throws Exception {
 
-		File journalArticlesDir = new File(_resourcesDir, articlesDirName);
+		File journalArticlesDir = getFile(articlesDirName);
 
 		if (!journalArticlesDir.isDirectory() ||
 			!journalArticlesDir.canRead()) {
@@ -356,8 +354,7 @@ public class FileSystemImporter extends BaseImporter {
 			InputStream inputStream = null;
 
 			try {
-				inputStream = new BufferedInputStream(
-					new FileInputStream(file));
+				inputStream = getInputStream(file);
 
 				addJournalArticles(
 					ddmStructureKey, ddmTemplateKey, file.getName(),
@@ -683,8 +680,12 @@ public class FileSystemImporter extends BaseImporter {
 		return portletJSONObject;
 	}
 
-	protected InputStream getInputStream(String fileName) throws Exception {
-		File file = new File(_resourcesDir, fileName);
+	protected File getFile(String filePath) throws Exception {
+
+		return new File(resourcesDir, filePath);
+	}
+
+	protected InputStream getInputStream(File file) throws Exception {
 
 		if (!file.exists() || file.isDirectory() || !file.canRead()) {
 			return null;
@@ -716,7 +717,8 @@ public class FileSystemImporter extends BaseImporter {
 	protected JSONObject getJSONObject(String fileName) throws Exception {
 		String json = null;
 
-		InputStream inputStream = getInputStream(fileName);
+		File file = getFile(fileName);
+		InputStream inputStream = getInputStream(file);
 
 		if (inputStream == null) {
 			return null;
