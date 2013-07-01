@@ -74,6 +74,9 @@ import com.liferay.portlet.journal.model.JournalArticle;
 import com.liferay.portlet.journal.model.JournalArticleConstants;
 import com.liferay.portlet.journal.service.JournalArticleLocalServiceUtil;
 import com.liferay.portlet.journal.util.JournalConverterUtil;
+import com.liferay.portlet.wiki.model.WikiNode;
+import com.liferay.portlet.wiki.service.WikiNodeLocalServiceUtil;
+import com.liferay.portlet.wiki.service.WikiPageLocalServiceUtil;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -783,6 +786,48 @@ public class FileSystemImporter extends BaseImporter {
 		}
 	}
 
+	protected void addWiki(String wikiDirectoryName) throws Exception {
+		File wikiDirectory = getFile(_WIKI_DIR_NAME);
+
+		File[] wikiNodeDirectories = wikiDirectory.listFiles();
+
+		if (wikiNodeDirectories == null) {
+			return;
+		}
+
+		for (File wikiNodeDirectory : wikiNodeDirectories) {
+			String wikiNodeName = wikiNodeDirectory.getName();
+			File[] wikiContentFiles = wikiNodeDirectory.listFiles();
+
+			for (File file : wikiContentFiles) {
+				String fileName = file.getName();
+				WikiNode wikiNode =
+					WikiNodeLocalServiceUtil.fetchNode(
+						groupId, wikiNodeName);
+
+				if (wikiNode == null) {
+					wikiNode =
+						WikiNodeLocalServiceUtil.addNode(
+							userId, wikiNodeName, "", serviceContext);
+				}
+
+				long nodeId = wikiNode.getNodeId();
+				String titleAndFormat = fileName.substring(
+					0, fileName.lastIndexOf('.'));
+				int formatIndex = titleAndFormat.lastIndexOf('.');
+				String title = titleAndFormat.substring(0, formatIndex);
+				String wikiFormat = titleAndFormat.substring(formatIndex + 1);
+				String summary = null;
+				boolean minorEdit = false;
+				InputStream contentInputStream = getInputStream(file);
+				String content = StringUtil.read(contentInputStream);
+				WikiPageLocalServiceUtil.addPage(
+					userId, nodeId, title, 1.0, content, summary, minorEdit,
+					wikiFormat, true, null, null, serviceContext);
+			}
+		}
+	}
+
 	protected void doImportResources() throws Exception {
 		serviceContext = new ServiceContext();
 
@@ -1031,6 +1076,8 @@ public class FileSystemImporter extends BaseImporter {
 
 		BlogsEntryLocalServiceUtil.deleteEntries(groupId);
 
+		WikiNodeLocalServiceUtil.deleteNodes(groupId);
+
 		JSONObject jsonObject = getJSONObject(fileName);
 
 		if (jsonObject != null) {
@@ -1049,6 +1096,8 @@ public class FileSystemImporter extends BaseImporter {
 		addDDMTemplates(StringPool.BLANK, _JOURNAL_DDM_TEMPLATES_DIR_NAME);
 
 		addBlogs(_BLOGS_DIR_NAME);
+
+		addWiki(_WIKI_DIR_NAME);
 	}
 
 	protected void setupSettings(String fileName) throws Exception {
@@ -1174,6 +1223,8 @@ public class FileSystemImporter extends BaseImporter {
 
 	private static final String _JOURNAL_DDM_TEMPLATES_DIR_NAME =
 		"/journal/templates/";
+
+	private static final String _WIKI_DIR_NAME = "/wiki/";
 
 	private Map<String, JSONObject> _assetJSONObjectMap =
 		new HashMap<String, JSONObject>();
