@@ -27,10 +27,6 @@ public class MessageBoardXMLStreamReader {
 			inputStream.close();
 			closed = true;
 		}
-	} private void readUsingSAX() throws Exception {
-		InputSource inputSource = new InputSource(inputStream);
-		SAXParser parser = SAXParserFactory.newInstance().newSAXParser();
-		parser.parse(inputSource, messageBoardHandler);
 	}
 
 	public final void read() throws Exception {
@@ -158,6 +154,12 @@ public class MessageBoardXMLStreamReader {
 			return attributesMap;
 		}
 	};
+
+	private void readUsingSAX() throws Exception {
+		InputSource inputSource = new InputSource(inputStream);
+		SAXParser parser = SAXParserFactory.newInstance().newSAXParser();
+		parser.parse(inputSource, messageBoardHandler);
+	}
 
 	private boolean closed = false;
 	private InputStream inputStream = null;

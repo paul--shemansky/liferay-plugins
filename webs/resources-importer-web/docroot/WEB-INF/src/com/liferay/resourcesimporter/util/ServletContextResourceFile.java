@@ -54,17 +54,17 @@ public class ServletContextResourceFile extends File {
 	}
 
 	@Override
-	public String getAbsolutePath() {
-		return this.path;
-	}
-	
-	@Override
 	public boolean canRead() {
 		return true;
 	}
 
 	public boolean exists() {
 		return exists;
+	}
+
+	@Override
+	public String getAbsolutePath() {
+		return this.path;
 	}
 
 	@Override
