@@ -51,7 +51,6 @@ import com.liferay.portal.service.LayoutSetPrototypeLocalServiceUtil;
 import com.liferay.portal.service.RepositoryLocalServiceUtil;
 import com.liferay.portal.service.ServiceContext;
 import com.liferay.portal.service.ThemeLocalServiceUtil;
-import com.liferay.portal.service.UserLocalServiceUtil;
 import com.liferay.portal.util.PortalUtil;
 import com.liferay.portal.util.PortletKeys;
 import com.liferay.portlet.PortletPreferencesFactoryUtil;
@@ -136,7 +135,6 @@ public class FileSystemImporter extends BaseImporter {
 			blogsEntryShortFileName.substring(
 				0, blogsEntryShortFileName.lastIndexOf("."));
 
-		long userId = super.userId;
 		Calendar calendar = GregorianCalendar.getInstance();
 
 		String description = "";
@@ -147,7 +145,9 @@ public class FileSystemImporter extends BaseImporter {
 		String[] trackbacks = null;
 
 		User user = null;
-		String userName = null;
+		String userScreenName = null;
+		String userUuid = null;
+		String userIdAsString = null;
 
 		if (blogMetaDataInputStream != null) {
 			String blogMetaDataJSON = StringUtil.read(blogMetaDataInputStream);
@@ -155,7 +155,9 @@ public class FileSystemImporter extends BaseImporter {
 				blogMetaDataJSON);
 
 			if (blogMetaData != null) {
-				userName = blogMetaData.getString("userScreenName");
+				userUuid = blogMetaData.getString("userUuid");
+				userIdAsString = blogMetaData.getString("userId");
+				userScreenName = blogMetaData.getString("userScreenName");
 				description = blogMetaData.getString("description");
 				String displayDate = blogMetaData.getString("displayDate");
 				DateFormat format = DateUtil.getISOFormat(displayDate);
@@ -172,24 +174,18 @@ public class FileSystemImporter extends BaseImporter {
 				smallImage = blogMetaData.getBoolean("smallImage");
 				smallImageInputStream = null;
 				allowTrackbacks = blogMetaData.getBoolean("allowTrackbacks");
-
-				if (Validator.isNotNull(userName)) {
-					user =
-						UserLocalServiceUtil.fetchUserByScreenName(
-							companyId, userName);
-				}
 			}
 		}
 
-		if (Validator.isNull(userName) || user == null) {
-			userName = pathSegments[0];
-			user = UserLocalServiceUtil.fetchUserByScreenName(
-				companyId, userName);
+		if (Validator.isNull(userScreenName)) {
+			userScreenName = pathSegments[0];
 		}
 
-		if (user != null) {
-			userId = user.getUserId();
-		}
+		user =
+			ImporterUserUtil.getImportUser(
+				serviceContext, userUuid, userIdAsString, userScreenName);
+
+		long userId = user.getUserId();
 
 		int displayDateMonth = calendar.get(GregorianCalendar.MONTH);
 		int displayDateDay = calendar.get(GregorianCalendar.DAY_OF_MONTH);

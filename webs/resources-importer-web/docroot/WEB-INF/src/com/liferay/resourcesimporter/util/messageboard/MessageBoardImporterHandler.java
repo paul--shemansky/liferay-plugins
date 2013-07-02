@@ -9,7 +9,6 @@ import com.liferay.portal.kernel.util.ObjectValuePair;
 import com.liferay.portal.kernel.util.StringPool;
 import com.liferay.portal.model.User;
 import com.liferay.portal.service.ServiceContext;
-import com.liferay.portal.service.UserLocalServiceUtil;
 import com.liferay.portlet.messageboards.model.MBCategory;
 import com.liferay.portlet.messageboards.model.MBCategoryConstants;
 import com.liferay.portlet.messageboards.model.MBMessage;
@@ -17,6 +16,7 @@ import com.liferay.portlet.messageboards.model.MBMessageConstants;
 import com.liferay.portlet.messageboards.model.MBThread;
 import com.liferay.portlet.messageboards.service.MBCategoryLocalServiceUtil;
 import com.liferay.portlet.messageboards.service.MBMessageLocalServiceUtil;
+import com.liferay.resourcesimporter.util.ImporterUserUtil;
 import com.liferay.resourcesimporter.util.messageboard.MessageBoardXMLStreamReader.MessageBoardObjectHandler;
 
 import java.io.InputStream;
@@ -142,34 +142,15 @@ public class MessageBoardImporterHandler extends MessageBoardObjectHandler {
 
 		String originalUserUuid = attributesMap.get("userUuid");
 		String originalUserId = attributesMap.get("userId");
+		String originalUserScreenName = attributesMap.get("userScreenName");
 
-		User user = null;
-		Long userId = null;
-		String userName = null;
+		User user =
+			ImporterUserUtil.getImportUser(
+				serviceContext, originalUserUuid, originalUserId,
+				originalUserScreenName);
 
-		if (originalUserUuid != null) {
-			try {
-				user =
-					UserLocalServiceUtil.getUserByUuidAndCompanyId(
-						originalUserUuid, serviceContext.getCompanyId());
-			}
-			catch (Exception e) {
-			}
-		}
-		else if (originalUserId != null) {
-			user =
-				UserLocalServiceUtil.fetchUserById(Long.parseLong(originalUserId));
-		}
-
-		if (user != null) {
-			userId = user.getUserId();
-		}
-		else {
-			userId = serviceContext.getUserId();
-			user = UserLocalServiceUtil.getUser(userId);
-		}
-
-		userName = user.getScreenName();
+		long userId = user.getUserId();
+		String userName = user.getScreenName();
 
 		String subject = attributesMap.get("subject");
 		String format = attributesMap.get("format");
