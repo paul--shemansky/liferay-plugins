@@ -16,8 +16,8 @@ package com.liferay.resourcesimporter.util;
 
 import java.io.File;
 
-import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLConnection;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,11 +30,26 @@ public class ServletContextResourceFile extends File {
 		ServletContext servletContext, String pathname) {
 
 		super(pathname);
-		this.path = pathname;
-		this.servletContext = servletContext;
+		try {
+			this.path = pathname;
+			this.servletContext = servletContext;
 
-		if (pathname.endsWith("/")) {
-			directory = true;
+			if (pathname.endsWith("/")) {
+				directory = true;
+			}
+
+			this.url = servletContext.getResource(path);
+
+			if (this.url != null) {
+				URLConnection connection = this.url.openConnection();
+				this.exists = true;
+				String contentLength = connection.getHeaderField(
+					"content-length");
+				this.length = Long.parseLong(contentLength);
+			}
+		}
+		catch (Exception e) {
+			throw new RuntimeException(e);
 		}
 	}
 
@@ -45,39 +60,30 @@ public class ServletContextResourceFile extends File {
 	
 	@Override
 	public boolean canRead() {
-
 		return true;
 	}
 
 	public boolean exists() {
-
-		boolean exists = false;
-		try {
-			URL url = servletContext.getResource(path);
-			exists = url != null;
-		}
-		catch (MalformedURLException e) {
-			exists = false;
-		}
-
 		return exists;
 	}
 
 	@Override
 	public boolean isDirectory() {
-
 		return directory;
 	}
 
 	@Override
 	public boolean isFile() {
-
 		return !directory;
 	}
 
 	@Override
-	public File[] listFiles() {
+	public long length() {
+		return length;
+	}
 
+	@Override
+	public File[] listFiles() {
 		List<File> files = new ArrayList<File>();
 		Set<String> resourcePaths = servletContext.getResourcePaths(this.path);
 
@@ -96,11 +102,14 @@ public class ServletContextResourceFile extends File {
 
 	@Override
 	public String toString() {
-
 		return path;
 	}
 
 	private boolean directory = false;
+	private boolean exists = false;
+	private long length = 0;
 	private String path = null;
 	private ServletContext servletContext = null;
+	private URL url = null;
+
 }
