@@ -213,36 +213,52 @@ public abstract class ResourceImporter extends BaseImporter {
 						String blogEntryFileName =
 							userBlogEntryFile.getAbsolutePath();
 
-						if (blogEntryFileName.endsWith(".html")) {
-							InputStream contentInputStream =
-								userBlogEntryFile.getInputStream();
+						InputStream contentInputStream = null;
+						InputStream blogMetaDataInputStream = null;
 
-							if (contentInputStream != null) {
-								String userBlogBaseFileName =
-									blogEntryFileName.substring(
-										resourcesDir.length(),
-										blogEntryFileName.length() - 5);
+						try {
+							if (blogEntryFileName.endsWith(".html")) {
+									contentInputStream =
+										userBlogEntryFile.getInputStream();
 
-								int blogPathLength =
-									blogsBaseDirectory.getPath().length() + 1;
-								String relativeBlogEntryFileName =
-									blogEntryFileName.substring(blogPathLength);
+								if (contentInputStream != null) {
+									String userBlogBaseFileName =
+										blogEntryFileName.substring(
+											resourcesDir.length(),
+											blogEntryFileName.length() - 5);
 
-								String blogMetaDataFileName =
-									userBlogBaseFileName + ".json";
-								Resource blogMetaDataFile = getResource(
-									blogMetaDataFileName);
-								InputStream blogMetaDataInputStream = null;
+									int blogPathLength =
+										blogsBaseDirectory.getPath().length() +
+											1;
+									String relativeBlogEntryFileName =
+										blogEntryFileName.substring(
+											blogPathLength);
 
-								if (blogMetaDataFile != null) {
-									blogMetaDataInputStream =
-										blogMetaDataFile.getInputStream();
+									String blogMetaDataFileName =
+										userBlogBaseFileName + ".json";
+									Resource blogMetaDataFile = getResource(
+										blogMetaDataFileName);
+
+									if (blogMetaDataFile != null) {
+										blogMetaDataInputStream =
+											blogMetaDataFile.getInputStream();
+									}
+
+									addBlogEntry(
+										relativeBlogEntryFileName,
+										contentInputStream,
+										blogMetaDataInputStream,
+										StringPool.BLANK, null);
 								}
+							}
+						}
+						finally {
+							if (contentInputStream != null) {
+								contentInputStream.close();
+							}
 
-								addBlogEntry(
-									relativeBlogEntryFileName,
-									contentInputStream, blogMetaDataInputStream,
-									StringPool.BLANK, null);
+							if (blogMetaDataInputStream != null) {
+								blogMetaDataInputStream.close();
 							}
 						}
 					}
@@ -811,11 +827,20 @@ public abstract class ResourceImporter extends BaseImporter {
 				String wikiFormat = titleAndFormat.substring(formatIndex + 1);
 				String summary = null;
 				boolean minorEdit = false;
-				InputStream contentInputStream = resource.getInputStream();
-				String content = StringUtil.read(contentInputStream);
-				WikiPageLocalServiceUtil.addPage(
-					userId, nodeId, title, 1.0, content, summary, minorEdit,
-					wikiFormat, true, null, null, _serviceContext);
+				InputStream contentInputStream = null;
+
+				try {
+					contentInputStream = resource.getInputStream();
+					String content = StringUtil.read(contentInputStream);
+					WikiPageLocalServiceUtil.addPage(
+						userId, nodeId, title, 1.0, content, summary, minorEdit,
+						wikiFormat, true, null, null, _serviceContext);
+				}
+				finally {
+					if (contentInputStream != null) {
+						contentInputStream.close();
+					}
+				}
 			}
 		}
 	}
