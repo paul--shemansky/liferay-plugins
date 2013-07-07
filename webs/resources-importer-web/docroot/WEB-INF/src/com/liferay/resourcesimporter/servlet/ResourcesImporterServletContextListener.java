@@ -33,11 +33,12 @@ import com.liferay.portal.model.Company;
 import com.liferay.portal.model.LayoutSetPrototype;
 import com.liferay.portal.security.auth.CompanyThreadLocal;
 import com.liferay.portal.service.CompanyLocalServiceUtil;
-import com.liferay.resourcesimporter.util.FileSystemImporter;
+import com.liferay.resourcesimporter.util.impl.FilesystemResourceImporter;
+import com.liferay.resourcesimporter.util.ResourceImporter;
 import com.liferay.resourcesimporter.util.Importer;
 import com.liferay.resourcesimporter.util.ImporterException;
 import com.liferay.resourcesimporter.util.LARImporter;
-import com.liferay.resourcesimporter.util.ResourceImporter;
+import com.liferay.resourcesimporter.util.impl.URLResourceImporter;
 
 import java.io.IOException;
 
@@ -92,8 +93,8 @@ public class ResourcesImporterServletContextListener
 			DestinationNames.HOT_DEPLOY, _messageListener);
 	}
 
-	protected FileSystemImporter getFileSystemImporter() {
-		return new FileSystemImporter();
+	protected ResourceImporter getFileSystemImporter() {
+		return new FilesystemResourceImporter();
 	}
 
 	protected LARImporter getLARImporter() {
@@ -132,7 +133,7 @@ public class ResourcesImporterServletContextListener
 	}
 
 	protected ResourceImporter getResourceImporter() {
-		return new ResourceImporter();
+		return new URLResourceImporter();
 	}
 
 	protected void initialize(Message message) throws Exception {
