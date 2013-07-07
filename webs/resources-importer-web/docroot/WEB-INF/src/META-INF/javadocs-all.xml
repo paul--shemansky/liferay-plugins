@@ -266,7 +266,7 @@
 	</javadoc>
 	<javadoc>
 		<name>FileSystemImporter</name>
-		<type>com.liferay.resourcesimporter.util.FileSystemImporter</type>
+		<type>com.liferay.resourcesimporter.util.ResourceImporter</type>
 		<author><![CDATA[Ryan Park]]></author>
 		<author><![CDATA[Raymond Augé]]></author>
 		<method>
@@ -978,7 +978,7 @@
 	</javadoc>
 	<javadoc>
 		<name>ResourceImporter</name>
-		<type>com.liferay.resourcesimporter.util.ResourceImporter</type>
+		<type>com.liferay.resourcesimporter.util.URLImporter</type>
 		<author><![CDATA[Raymond Augé]]></author>
 		<author><![CDATA[Ryan Park]]></author>
 		<method>
