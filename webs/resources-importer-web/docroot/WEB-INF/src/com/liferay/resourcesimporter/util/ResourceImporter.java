@@ -273,26 +273,28 @@ public abstract class ResourceImporter extends BaseImporter {
 
 		Resource journalStructuresResource = getResource(structuresDirName);
 
-		if (!journalStructuresResource.isFile() ||
-				!journalStructuresResource.canRead()) {
+		if (journalStructuresResource.isFile() ||
+			!journalStructuresResource.canRead()) {
 
 			return;
 		}
 
 		Resource[] resources = journalStructuresResource.listFileResources();
 
-		for (Resource resource : resources) {
-			InputStream inputStream = null;
+		if (resources != null) {
+			for (Resource resource : resources) {
+				InputStream inputStream = null;
 
-			try {
-				inputStream = resource.getInputStream();
+				try {
+					inputStream = resource.getInputStream();
 
-				addDDMStructures(
-					parentDDMStructureKey, resource.getName(), inputStream);
-			}
-			finally {
-				if (inputStream != null) {
-					inputStream.close();
+					addDDMStructures(
+						parentDDMStructureKey, resource.getName(), inputStream);
+				}
+				finally {
+					if (inputStream != null) {
+						inputStream.close();
+					}
 				}
 			}
 		}
@@ -342,23 +344,25 @@ public abstract class ResourceImporter extends BaseImporter {
 		Resource journalTemplatesDir = getResource(templatesDirName);
 
 		if (journalTemplatesDir.isFile() || !journalTemplatesDir.canRead()) {
-
 			return;
 		}
 
 		Resource[] files = journalTemplatesDir.listFileResources();
 
-		for (Resource file : files) {
-			InputStream inputStream = null;
+		if (files != null) {
+			for (Resource file : files) {
+				InputStream inputStream = null;
 
-			try {
-				inputStream = file.getInputStream();
+				try {
+					inputStream = file.getInputStream();
 
-				addDDMTemplates(ddmStructureKey, file.getName(), inputStream);
-			}
-			finally {
-				if (inputStream != null) {
-					inputStream.close();
+					addDDMTemplates(
+						ddmStructureKey, file.getName(), inputStream);
+				}
+				finally {
+					if (inputStream != null) {
+						inputStream.close();
+					}
 				}
 			}
 		}
@@ -431,9 +435,10 @@ public abstract class ResourceImporter extends BaseImporter {
 
 		try {
 			inputStream = resource.getInputStream();
+			long fileSize = resource.length();
 
 			addDLFileEntry(
-				parentFolderId, resource.getName(), inputStream);
+				parentFolderId, resource.getName(), inputStream, fileSize);
 		}
 		finally {
 			if (inputStream != null) {
@@ -443,13 +448,11 @@ public abstract class ResourceImporter extends BaseImporter {
 	}
 
 	protected void addDLFileEntry(
-			long parentFolderId, String fileName, InputStream inputStream)
+		long parentFolderId, String fileName, InputStream inputStream,
+		long length)
 		throws Exception {
 
 		setServiceContext(fileName);
-
-		//	TODO: Find a better way to address this
-		int length = 0;
 
 		FileEntry fileEntry = DLAppLocalServiceUtil.addFileEntry(
 			userId, groupId, parentFolderId, fileName,
@@ -511,19 +514,21 @@ public abstract class ResourceImporter extends BaseImporter {
 
 		Resource[] resources = journalArticlesDir.listFileResources();
 
-		for (Resource resource : resources) {
-			InputStream inputStream = null;
+		if (resources != null) {
+			for (Resource resource : resources) {
+				InputStream inputStream = null;
 
-			try {
-				inputStream = resource.getInputStream();
+				try {
+					inputStream = resource.getInputStream();
 
-				addJournalArticles(
-					ddmStructureKey, ddmTemplateKey, resource.getName(),
-					inputStream);
-			}
-			finally {
-				if (inputStream != null) {
-					inputStream.close();
+					addJournalArticles(
+						ddmStructureKey, ddmTemplateKey, resource.getName(),
+						inputStream);
+				}
+				finally {
+					if (inputStream != null) {
+						inputStream.close();
+					}
 				}
 			}
 		}
@@ -809,9 +814,8 @@ public abstract class ResourceImporter extends BaseImporter {
 
 			for (Resource resource : wikiContentResources) {
 				String fileName = resource.getName();
-				WikiNode wikiNode =
-					WikiNodeLocalServiceUtil.fetchNode(
-						groupId, wikiNodeName);
+				WikiNode wikiNode = WikiNodeLocalServiceUtil.fetchNode(
+					groupId, wikiNodeName);
 
 				if (wikiNode == null) {
 					wikiNode =
@@ -889,8 +893,6 @@ public abstract class ResourceImporter extends BaseImporter {
 		return portletJSONObject;
 	}
 
-	protected abstract Resource getResource(String filePath) throws Exception;
-
 	protected String getJournalId(String fileName) {
 		String id = FileUtil.stripExtension(fileName);
 
@@ -945,6 +947,8 @@ public abstract class ResourceImporter extends BaseImporter {
 
 		return map;
 	}
+
+	protected abstract Resource getResource(String filePath) throws Exception;
 
 	protected boolean isJournalStructureXSD(String xsd) throws Exception {
 		Document document = SAXReaderUtil.read(xsd);

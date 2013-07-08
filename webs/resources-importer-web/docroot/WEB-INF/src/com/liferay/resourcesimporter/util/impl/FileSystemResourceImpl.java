@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -65,6 +66,11 @@ public class FileSystemResourceImpl extends BaseResourceImpl {
 	@Override
 	public boolean isFile() {
 		return _file.isFile();
+	}
+
+	@Override
+	public long length() {
+		return _file.length();
 	}
 
 	protected Resource[] listResourcesByType(ResourceType type) {

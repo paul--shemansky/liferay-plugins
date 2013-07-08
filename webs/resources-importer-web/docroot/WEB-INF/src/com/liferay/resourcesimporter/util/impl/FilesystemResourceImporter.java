@@ -16,7 +16,6 @@ package com.liferay.resourcesimporter.util.impl;
 
 import com.liferay.resourcesimporter.util.Resource;
 import com.liferay.resourcesimporter.util.ResourceImporter;
-import com.liferay.resourcesimporter.util.impl.FileSystemResourceImpl;
 
 import java.io.File;
 
