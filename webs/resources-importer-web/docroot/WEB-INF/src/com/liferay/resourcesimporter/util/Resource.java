@@ -14,8 +14,6 @@
 
 package com.liferay.resourcesimporter.util;
 
-import com.liferay.portal.kernel.util.File;
-
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -23,6 +21,8 @@ import java.io.InputStream;
  * @author Edward C. Han
  */
 public interface Resource {
+
+	public boolean canRead();
 
 	public String getAbsolutePath();
 
@@ -34,7 +34,7 @@ public interface Resource {
 
 	public boolean isFile();
 
-	public boolean canRead();
+	public long length();
 
 	public Resource[] listFileResources();
 

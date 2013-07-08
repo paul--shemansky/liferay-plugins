@@ -17,11 +17,16 @@ package com.liferay.resourcesimporter.util.impl;
 import com.liferay.portal.kernel.util.CharPool;
 import com.liferay.resourcesimporter.util.Resource;
 
-import javax.servlet.ServletContext;
 import java.io.InputStream;
+
+import java.net.URL;
+import java.net.URLConnection;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+
+import javax.servlet.ServletContext;
 
 /**
  * @author Edward C. Han
@@ -36,14 +41,28 @@ public class URLResourceImpl extends BaseResourceImpl {
 
 		int indexOfLastSlash = absoluteResourcePath.lastIndexOf(CharPool.SLASH);
 
-		_isFile = indexOfLastSlash == (absoluteResourcePath.length() - 1);
+		_isFile = indexOfLastSlash != (absoluteResourcePath.length() - 1);
 
 		if (_isFile) {
 			_name = absoluteResourcePath.substring(indexOfLastSlash + 1);
+
+			try {
+				URL url = _servletContext.getResource(absoluteResourcePath);
+
+				if (url != null) {
+					URLConnection urlConnection = url.openConnection();
+					String contentLengthHeader = urlConnection.getHeaderField(
+						"content-length");
+					_length = Long.parseLong(contentLengthHeader);
+				}
+			}
+			catch (Exception e) {
+				throw new RuntimeException(e);
+			}
 		}
 		else {
-			String noLastSlash =
-				absoluteResourcePath.substring(0, indexOfLastSlash);
+			String noLastSlash = absoluteResourcePath.substring(
+				0, indexOfLastSlash);
 
 			int indexOfSlash = noLastSlash.lastIndexOf(CharPool.SLASH);
 
@@ -85,6 +104,11 @@ public class URLResourceImpl extends BaseResourceImpl {
 	}
 
 	@Override
+	public long length() {
+		return _length;
+	}
+
+	@Override
 	protected Resource[] listResourcesByType(ResourceType type) {
 		if (isFile()) {
 			return new Resource[0];
@@ -116,7 +140,8 @@ public class URLResourceImpl extends BaseResourceImpl {
 	}
 
 	private boolean _isFile;
+	private long _length;
 	private String _name;
-	private ServletContext _servletContext;
 	private String _resourcePath;
+	private ServletContext _servletContext;
 }

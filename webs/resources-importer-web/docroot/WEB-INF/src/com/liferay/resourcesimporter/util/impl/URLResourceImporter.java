@@ -24,8 +24,12 @@ import com.liferay.resourcesimporter.util.ResourceImporter;
 public class URLResourceImporter extends ResourceImporter {
 
 	@Override
+	public void importResources() throws Exception {
+		super.doImportResources();
+	}
+
+	@Override
 	protected Resource getResource(String filePath) throws Exception {
-		return new URLResourceImpl(
-			resourcesDir + filePath, servletContext);
+		return new URLResourceImpl(resourcesDir + filePath, servletContext);
 	}
 }
