@@ -73,9 +73,12 @@ import com.liferay.portlet.journal.model.JournalArticle;
 import com.liferay.portlet.journal.model.JournalArticleConstants;
 import com.liferay.portlet.journal.service.JournalArticleLocalServiceUtil;
 import com.liferay.portlet.journal.util.JournalConverterUtil;
+import com.liferay.portlet.messageboards.service.MBCategoryLocalServiceUtil;
 import com.liferay.portlet.wiki.model.WikiNode;
 import com.liferay.portlet.wiki.service.WikiNodeLocalServiceUtil;
 import com.liferay.portlet.wiki.service.WikiPageLocalServiceUtil;
+import com.liferay.resourcesimporter.util.messageboard.MessageBoardImporterHandler;
+import com.liferay.resourcesimporter.util.messageboard.MessageBoardXMLStreamReader;
 
 import java.io.InputStream;
 import java.io.Serializable;
@@ -799,6 +802,41 @@ public abstract class ResourceImporter extends BaseImporter {
 		}
 	}
 
+	protected void addMessageBoards(String messageBoardsDirName)
+		throws Exception {
+
+		InputStream messageBoardFileIS = null;
+		MessageBoardXMLStreamReader reader = null;
+		try {
+			Resource messageBoardDirectory = getResource(messageBoardsDirName);
+			if (messageBoardDirectory != null) {
+				Resource[] messageBoardFiles =
+					messageBoardDirectory.listFileResources();
+
+				if (messageBoardFiles != null) {
+					for (Resource messageBoardFile : messageBoardFiles) {
+						messageBoardFileIS = messageBoardFile.getInputStream();
+						reader =
+							new MessageBoardXMLStreamReader(messageBoardFileIS);
+						MessageBoardImporterHandler xmlHandler =
+							new MessageBoardImporterHandler(_serviceContext);
+						reader.setMessageBoardHandler(xmlHandler);
+						reader.read();
+					}
+				}
+			}
+		}
+		finally {
+			if (messageBoardFileIS != null) {
+				messageBoardFileIS.close();
+			}
+
+			if (reader != null) {
+				reader.close();
+			}
+		}
+	}
+
 	protected void addWiki(String wikiDirectoryName) throws Exception {
 		Resource wikiDirectory = getResource(_WIKI_DIR_NAME);
 
@@ -854,6 +892,8 @@ public abstract class ResourceImporter extends BaseImporter {
 
 		_serviceContext.setAddGroupPermissions(true);
 		_serviceContext.setAddGuestPermissions(true);
+		_serviceContext.setUserId(userId);
+		_serviceContext.setCompanyId(companyId);
 		_serviceContext.setScopeGroupId(groupId);
 
 		setupAssets("assets.json");
@@ -1061,6 +1101,8 @@ public abstract class ResourceImporter extends BaseImporter {
 
 		BlogsEntryLocalServiceUtil.deleteEntries(groupId);
 
+		MBCategoryLocalServiceUtil.deleteCategories(groupId);
+
 		WikiNodeLocalServiceUtil.deleteNodes(groupId);
 
 		JSONObject jsonObject = getJSONObject(fileName);
@@ -1081,6 +1123,8 @@ public abstract class ResourceImporter extends BaseImporter {
 		addDDMTemplates(StringPool.BLANK, _JOURNAL_DDM_TEMPLATES_DIR_NAME);
 
 		addBlogs(_BLOGS_DIR_NAME);
+
+		addMessageBoards(_MESSAGE_BOARDS_DIR_NAME);
 
 		addWiki(_WIKI_DIR_NAME);
 	}
@@ -1206,6 +1250,8 @@ public abstract class ResourceImporter extends BaseImporter {
 
 	private static final String _JOURNAL_DDM_TEMPLATES_DIR_NAME =
 		"/journal/templates/";
+
+	private static final String _MESSAGE_BOARDS_DIR_NAME = "/message_boards/";
 
 	private static final String _WIKI_DIR_NAME = "/wiki/";
 
